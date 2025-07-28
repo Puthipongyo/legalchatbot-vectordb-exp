@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.log
+*.DS_Store
+
+# Virtual environment
+venv/
+
+# MLflow local tracking
+mlruns/
+mlflow.db
+
+# Qdrant vector data
+qdrant_data/
+
+# VSCode / Editor settings (optional)
+.vscode/
+.idea/
