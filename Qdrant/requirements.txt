@@ -4,3 +4,4 @@ mlflow
 tf-keras
 PyMuPDF
 torch
+pandas
