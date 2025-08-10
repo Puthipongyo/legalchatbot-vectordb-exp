@@ -1,4 +1,5 @@
 from VectorDB import Database
+from qdrant_client import QdrantClient
 from mlflow_config import setup_mlflow
 from qdrant_client.http.models import VectorParams, Distance, PointStruct
 from qdrant_client.models import Filter, FieldCondition, MatchValue
@@ -89,38 +90,45 @@ class Main:
         
 
 if __name__ == "__main__":
+
+    qdrant_path = "./qdrant_data"  
+    qdrant_client = QdrantClient(path=qdrant_path)
+
+    db = Database(client=qdrant_client)
+
     main = Main()
-    db = Database()
-    embed_model_name = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2" #bge-m3
+    embed_model_name = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     model = SentenceTransformer(embed_model_name)
 
     pdf_path = str(Path("Documents/ประมวลกฎหมายแพ่งและพาณิชย์.pdf"))
     output_path = str(Path("Documents/Output"))
 
-    documents = main.read_pdf_text(pdf_path, min_len=50, join_paragraphs=True, save_path=f"{output_path}/output.txt")
+    documents = main.read_pdf_text(pdf_path, min_len=50, join_paragraphs=True,
+                                   save_path=f"{output_path}/output.txt")
     print(f"{len(documents)} chunks")
 
-    texts = [d["text"] for d in documents]              
-    vectors = [l2_normalize(v) for v in model.encode(texts).tolist()]  
+    texts = [d["text"] for d in documents]
+    vectors = [l2_normalize(v) for v in model.encode(texts).tolist()]
 
     collection_name = "legal_pdf_demo"
-    main.create_collection(collection_name, Distance.COSINE, vector_size=len(vectors[0]))  
-    main.upsert(collection_name, vectors, documents)  
+    main.create_collection(collection_name, Distance.COSINE,
+                           vector_size=len(vectors[0]))
+    main.upsert(collection_name, vectors, documents)
 
     print("Inserted PDF into Qdrant.")
     print(db.get_collections())
 
     # LLM model
     csv_path = str(Path("csv/data_case_100.csv"))
-    csv_output = str(Path("csv/answers_rag.csv"))   
+    csv_output = str(Path("csv/answers_rag.csv"))
     model_llm = "scb10x/llama3.1-typhoon2-70b-instruct"
-    
+
     df = pd.read_csv(csv_path, encoding="utf-8-sig")
-    
+
     llm_model = LLM(model_llm, db=db, use_4bit=True)
     llm_model.llmSetup()
-    
-    question_prompt="ข้อความคดีนี้มีมาตราที่เกี่ยวข้องมากที่สุด 5 อันดับแรกมีอะไรบ้าง"
+
+    question_prompt = "ข้อความคดีนี้มีมาตราที่เกี่ยวข้องมากที่สุด 5 อันดับแรกมีอะไรบ้าง"
     out_path = llm_model.ask_law_questions_to_csv_rag(
         df=df,
         out_path=csv_output,
@@ -130,8 +138,6 @@ if __name__ == "__main__":
         top_k=5,
         max_ctx_chars=4000,
         max_new_tokens=256
-    )   
-    
-    # main.mlflow_log("TestLaw_Qdrant", embed_model_name, collection_name, recall_at_k=0.85, k=top_k)
+    )
 
     print("############ End Process ############")
